@@ -5,10 +5,11 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import com.example.catalog.kafka.KafkaProducer
 
 @RestController
 @RequestMapping("/api/products")
-class ProductController(@Autowired private val productRepository: ProductRepository) {
+class ProductController(@Autowired private val productRepository: ProductRepository,  @Autowired private val kafkaProducer: KafkaProducer) {
 
     @GetMapping("")
     fun getAllProducts(): List<Product> =
@@ -17,6 +18,7 @@ class ProductController(@Autowired private val productRepository: ProductReposit
     @PostMapping("")
     fun createProduct(@RequestBody product: Product): ResponseEntity<Product> {
         val createdProduct = productRepository.save(product)
+        kafkaProducer.sendProductUpdate("Product added to database: $createdProduct")
         return ResponseEntity(createdProduct, HttpStatus.CREATED)
     }
 
@@ -38,6 +40,7 @@ class ProductController(@Autowired private val productRepository: ProductReposit
 
         val updatedProduct = existingProduct.copy(name = product.name, quantity = product.quantity)
         productRepository.save(updatedProduct)
+        kafkaProducer.sendProductUpdate("Product with id $productId updated to: $updatedProduct")
         return ResponseEntity(updatedProduct, HttpStatus.OK)
     }
 
@@ -47,6 +50,7 @@ class ProductController(@Autowired private val productRepository: ProductReposit
             return ResponseEntity(HttpStatus.NOT_FOUND)
         }
         productRepository.deleteById(productId)
+        kafkaProducer.sendProductUpdate("Product with id $productId deleted.")
         return ResponseEntity(HttpStatus.NO_CONTENT)
     }
 }
